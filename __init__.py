@@ -39,13 +39,17 @@ class AnimationAttacher(bpy.types.Operator):
                 bpy.ops.object.parent_set(type='ARMATURE')
 
                 character_obj.animation_data_create()
-                
                 track = character_obj.animation_data.nla_tracks.new()
                 track.name = props.nla_track_name
                 strip = track.strips.new(name=new_animation_action.name, start=0, action=new_animation_action)
 
                 strip.blend_type = 'REPLACE'
                 strip.influence = 1.0
+
+                if props.remove_root_movement:
+                    for fcu in new_animation_root_obj.animation_data.action.fcurves:
+                        if fcu.data_path == "location" and fcu.array_index == 1:
+                            fcu.mute = True
 
                 new_animation_root_obj.hide_set(True)
                 bpy.context.collection.objects.unlink(new_animation_root_obj)
@@ -81,9 +85,10 @@ class AnimationAttacherPanel(bpy.types.Panel):
         
         row = layout.row()
         row.prop(props, "new_animation_root_name")
-        row.operator('anim.sync_names', text='', icon='ARROW_LEFTRIGHT')
-
+        row.operator('anim.sync_names', text="", icon='FILE_REFRESH')
+        
         layout.prop(props, "nla_track_name")
+        layout.prop(props, "remove_root_movement")
 
         layout.operator("anim.attach")
 
@@ -105,6 +110,12 @@ class AnimationAttacherProperties(bpy.types.PropertyGroup):
         name="NLA Track",
         description="Name of the NLA track",
         default="Root.001"
+    )
+
+    remove_root_movement: bpy.props.BoolProperty(
+        name="Remove root movement",
+        description="Mutes Y location keyframes of selected armature",
+        default=False
     )
 
 
