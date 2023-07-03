@@ -40,16 +40,18 @@ class AnimationAttacher(bpy.types.Operator):
 
                 character_obj.animation_data_create()
                 track = character_obj.animation_data.nla_tracks.new()
-                track.name = props.nla_track_name
+                track.name = props.track_name if props.track_name else new_animation_action.name
                 strip = track.strips.new(name=new_animation_action.name, start=0, action=new_animation_action)
 
                 strip.blend_type = 'REPLACE'
                 strip.influence = 1.0
 
+                # Remove root movement if specified
                 if props.remove_root_movement:
                     for fcu in new_animation_root_obj.animation_data.action.fcurves:
                         if fcu.data_path == "location" and fcu.array_index == 1:
-                            fcu.mute = True
+                            for keyframe in fcu.keyframe_points:
+                                keyframe.co.y = 0
 
                 new_animation_root_obj.hide_set(True)
                 bpy.context.collection.objects.unlink(new_animation_root_obj)
@@ -67,7 +69,7 @@ class AnimationAttacherSyncNames(bpy.types.Operator):
 
     def execute(self, context):
         props = context.scene.animation_attacher_props
-        props.nla_track_name = props.new_animation_root_name
+        props.track_name = props.new_animation_root_name
         return {'FINISHED'}
 
 
@@ -87,37 +89,17 @@ class AnimationAttacherPanel(bpy.types.Panel):
         row.prop(props, "new_animation_root_name")
         row.operator('anim.sync_names', text="", icon='FILE_REFRESH')
         
-        layout.prop(props, "nla_track_name")
+        layout.prop(props, "track_name")
         layout.prop(props, "remove_root_movement")
 
         layout.operator("anim.attach")
 
 
 class AnimationAttacherProperties(bpy.types.PropertyGroup):
-    character_name: bpy.props.StringProperty(
-        name="Object to animate",
-        description="Name of the object you want your animation to be attached to",
-        default="Root"
-    )
-
-    new_animation_root_name: bpy.props.StringProperty(
-        name="Animation",
-        description="Name of the root of animation object",
-        default="Root.001"
-    )
-
-    nla_track_name: bpy.props.StringProperty(
-        name="NLA Track",
-        description="Name of the NLA track",
-        default="Root.001"
-    )
-
-    remove_root_movement: bpy.props.BoolProperty(
-        name="Remove root movement",
-        description="Mutes Y location keyframes of selected armature",
-        default=False
-    )
-
+    character_name: bpy.props.StringProperty(name="Object to animate", description="Name of the object you want your animation to be attached to", default="Root")
+    new_animation_root_name: bpy.props.StringProperty(name="Animation", description="Name of the root of animation object", default="Root.001")
+    track_name: bpy.props.StringProperty(name="NLA Track Name", description="Name of the NLA track", default="Root.001")
+    remove_root_movement: bpy.props.BoolProperty(name="Remove root movement", description="Check to remove root movement by resetting Y location keyframes to zero", default=False)
 
 def register():
     bpy.utils.register_class(AnimationAttacherProperties)
